@@ -192,7 +192,11 @@ defmodule PaperTrail.Serializer do
     {alias, dumped_value}
   end
 
-  @spec do_dump_field!(module, atom, atom, any, module) :: any
+  @spec do_dump_field!(module, atom, any, any, module) :: any
+  defp do_dump_field!(schema, _field, {_, Ecto.Embedded, _}, _value, _adapter) do
+    Ecto.embedded_dump(schema.__struct__(), :json)
+  end
+
   defp do_dump_field!(schema, field, type, value, adapter) do
     case Ecto.Type.adapter_dump(adapter, type, value) do
       {:ok, value} ->
