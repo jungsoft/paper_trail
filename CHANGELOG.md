@@ -1,3 +1,12 @@
+### v0.8.3 - October 22th, 2021 - Jungsoft version:
+- Save changes for nested associations.
+- Deal with changes that have embedded schemas.
+- Get the correct type of `originator_id` when building versions for update.
+- Support multiple Repos.
+- Support `update_all` operation.
+- Improve serialization for non string Ecto types.
+- Do not create version when there are no changes.
+
 ### v0.8.3 - September 10th, 2019:
 - PaperTrail.delete now accepts Ecto.Changeset
 
