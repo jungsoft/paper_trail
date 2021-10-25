@@ -78,6 +78,7 @@ defmodule PaperTrail.Serializer do
     originator = RepoClient.originator()
     originator_ref = options[originator[:name]] || options[:originator]
     originator_id = if(originator_ref, do: originator_ref.id, else: nil)
+    originator_id_type = RepoClient.originator_type()
     origin = options[:origin]
     meta = options[:meta]
     repo = RepoClient.repo(options)
@@ -89,7 +90,7 @@ defmodule PaperTrail.Serializer do
           item_type: type(^item_type, :string),
           item_id: field(q, ^primary_key),
           item_changes: type(^changes_map, :map),
-          originator_id: type(^originator_id, :string),
+          originator_id: type(^originator_id, ^originator_id_type),
           origin: type(^origin, :string),
           meta: type(^meta, :map),
           inserted_at: type(fragment("CURRENT_TIMESTAMP"), :naive_datetime)
@@ -191,7 +192,11 @@ defmodule PaperTrail.Serializer do
     {alias, dumped_value}
   end
 
-  @spec do_dump_field!(module, atom, atom, any, module) :: any
+  @spec do_dump_field!(module, atom, any, any, module) :: any
+  defp do_dump_field!(schema, _field, {_, Ecto.Embedded, _}, _value, _adapter) do
+    Ecto.embedded_dump(schema.__struct__(), :json)
+  end
+
   defp do_dump_field!(schema, field, type, value, adapter) do
     case Ecto.Type.adapter_dump(adapter, type, value) do
       {:ok, value} ->
