@@ -1,3 +1,6 @@
+### v0.11.1 - January 25th, 2022 - Jungsoft version:
+- Add workaround for wrong `Ecto.Multi.insert_all` typespec (https://github.com/elixir-ecto/ecto/pull/3781)
+
 ### v0.11.0 - January 24th, 2022 - Jungsoft version:
 - Chunk attributes when doing `insert_all` to not reach Postgres limit of 65535 query parameters.
 
