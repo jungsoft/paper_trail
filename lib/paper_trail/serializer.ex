@@ -178,23 +178,21 @@ defmodule PaperTrail.Serializer do
     {field, serialize(value, options, event)}
   end
 
+  defp dump_field!({field, [%Ecto.Changeset{} | _] = changesets}, _schema, _adapter, options, event) do
+    serialized_changesets = Enum.map(changesets, fn changeset -> serialize(changeset, options, event) end)
+    {field, serialized_changesets}
+  end
+
   defp dump_field!({field, value}, schema, adapter, _options, _event) do
     dumper = schema.__schema__(:dump)
     {alias, type} = Map.fetch!(dumper, field)
 
     dumped_value =
-      if(
-        type in ignored_ecto_types(),
+      if type in ignored_ecto_types(),
         do: serialize_binary(value),
         else: do_dump_field!(schema, field, type, value, adapter)
-      )
 
     {alias, dumped_value}
-  end
-
-  @spec do_dump_field!(module, atom, any, any, module) :: any
-  defp do_dump_field!(schema, _field, {_, Ecto.Embedded, _}, _value, _adapter) do
-    Ecto.embedded_dump(schema.__struct__(), :json)
   end
 
   defp do_dump_field!(schema, field, type, value, adapter) do
