@@ -31,7 +31,7 @@ defmodule PaperTrail.Multi do
   defdelegate run(multi, name, mod, fun, args), to: Ecto.Multi
   defdelegate to_list(multi), to: Ecto.Multi
   defdelegate make_version_struct(version, model, options), to: Serializer
-  defdelegate make_version_structs(version, queryable, changes, options), to: Serializer
+  defdelegate make_version_query(version, queryable, changes, options), to: Serializer
   defdelegate get_sequence_from_model(changeset, options \\ []), to: Serializer
   defdelegate serialize(data, options), to: Serializer
   defdelegate get_sequence_id(table_name, options \\ []), to: Serializer
@@ -153,7 +153,7 @@ defmodule PaperTrail.Multi do
       ) do
     model_key = get_model_key(options)
     version_key = get_version_key(options)
-    entries = make_version_structs(%{event: "update"}, queryable, changes, options)
+    entries_query = make_version_query(%{event: "update"}, queryable, changes, options)
     returning = !!options[:returning] && RepoClient.return_operation(options) == version_key
 
     case RepoClient.strict_mode(options) do
@@ -162,8 +162,8 @@ defmodule PaperTrail.Multi do
 
       _ ->
         multi
+        |> Ecto.Multi.insert_all(version_key, Version, entries_query, returning: returning)
         |> Ecto.Multi.update_all(model_key, queryable, updates)
-        |> Ecto.Multi.insert_all(version_key, Version, entries, returning: returning)
     end
   end
 

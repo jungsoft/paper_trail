@@ -68,9 +68,9 @@ defmodule PaperTrail.Serializer do
     |> add_prefix(options[:prefix])
   end
 
-  @spec make_version_structs(map, PaperTrail.queryable(), Keyword.t() | map, PaperTrail.options()) ::
-          [map]
-  def make_version_structs(%{event: "update"}, queryable, changes, options) do
+  @spec make_version_query(map, PaperTrail.queryable(), Keyword.t() | map, PaperTrail.options()) ::
+          Ecto.Query.t()
+  def make_version_query(%{event: "update"}, queryable, changes, options) do
     {_table, schema} = queryable.from.source
     item_type = schema |> struct() |> get_item_type()
     [primary_key] = schema.__schema__(:primary_key)
@@ -81,22 +81,19 @@ defmodule PaperTrail.Serializer do
     originator_id_type = RepoClient.originator_type()
     origin = options[:origin]
     meta = options[:meta]
-    repo = RepoClient.repo(options)
 
-    repo.all(
-      from(q in queryable,
-        select: %{
-          event: type(^"update", :string),
-          item_type: type(^item_type, :string),
-          item_id: field(q, ^primary_key),
-          item_changes: type(^changes_map, :map),
-          originator_id: type(^originator_id, ^originator_id_type),
-          origin: type(^origin, :string),
-          meta: type(^meta, :map),
-          inserted_at: type(fragment("CURRENT_TIMESTAMP"), :naive_datetime)
-        }
-      )
-    )
+    queryable
+    |> exclude(:select)
+    |> select([q], %{
+      event: type(^"update", :string),
+      item_type: type(^item_type, :string),
+      item_id: field(q, ^primary_key),
+      item_changes: type(^changes_map, :map),
+      originator_id: type(^originator_id, ^originator_id_type),
+      origin: type(^origin, :string),
+      meta: type(^meta, :map),
+      inserted_at: type(fragment("CURRENT_TIMESTAMP"), :naive_datetime)
+    })
   end
 
   def get_sequence_from_model(changeset, options \\ []) do
@@ -178,23 +175,21 @@ defmodule PaperTrail.Serializer do
     {field, serialize(value, options, event)}
   end
 
+  defp dump_field!({field, [%Ecto.Changeset{} | _] = changesets}, _schema, _adapter, options, event) do
+    serialized_changesets = Enum.map(changesets, fn changeset -> serialize(changeset, options, event) end)
+    {field, serialized_changesets}
+  end
+
   defp dump_field!({field, value}, schema, adapter, _options, _event) do
     dumper = schema.__schema__(:dump)
     {alias, type} = Map.fetch!(dumper, field)
 
     dumped_value =
-      if(
-        type in ignored_ecto_types(),
+      if type in ignored_ecto_types(),
         do: serialize_binary(value),
         else: do_dump_field!(schema, field, type, value, adapter)
-      )
 
     {alias, dumped_value}
-  end
-
-  @spec do_dump_field!(module, atom, any, any, module) :: any
-  defp do_dump_field!(schema, _field, {_, Ecto.Embedded, _}, _value, _adapter) do
-    Ecto.embedded_dump(schema.__struct__(), :json)
   end
 
   defp do_dump_field!(schema, field, type, value, adapter) do

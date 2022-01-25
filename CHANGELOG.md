@@ -1,12 +1,15 @@
-### v0.8.3 - October 22th, 2021 - Jungsoft version:
+### v0.11.0 - January 24th, 2022 - Jungsoft version:
+- Chunk attributes when doing `insert_all` to not reach Postgres limit of 65535 query parameters.
+
+### October 22th, 2021 - Jungsoft version:
 - Save changes for nested associations.
 - Deal with changes that have embedded schemas.
 - Get the correct type of `originator_id` when building versions for update.
+### https://github.com/nash-io/paper_trail/ version:
 - Support multiple Repos.
 - Support `update_all` operation.
 - Improve serialization for non string Ecto types.
 - Do not create version when there are no changes.
-
 ### v0.8.3 - September 10th, 2019:
 - PaperTrail.delete now accepts Ecto.Changeset
 

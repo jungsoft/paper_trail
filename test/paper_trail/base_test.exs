@@ -674,6 +674,31 @@ defmodule PaperTrailTest do
            ] = PaperTrail.VersionQueries.get_versions(User, user3.id)
   end
 
+  test "update_all should insert versions before updating" do
+    {:ok, %{model: company}} = create_company_with_version()
+
+    %{model: {1, nil}, version: {1, nil}} =
+      Company
+      |> where([c], c.is_active)
+      |> CustomPaperTrail.update_all(set: [is_active: false])
+
+    assert %Company{is_active: false} = @repo.get(Company, company.id)
+
+    company_id = company.id
+
+    assert [
+             %PaperTrail.Version{
+               item_id: ^company_id,
+               event: "update",
+               item_changes: %{"is_active" => false}
+             },
+             %PaperTrail.Version{
+               item_id: ^company_id,
+               event: "insert"
+             }
+           ] = PaperTrail.VersionQueries.get_versions(Company, company.id)
+  end
+
   test "update_all with returning option returns inserted version" do
     create_user()
     %{id: user2_id} = create_user()
