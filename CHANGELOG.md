@@ -1,3 +1,6 @@
+### January 24th, 2022 - Jungsoft version:
+- Chunk attributes when doing `insert_all` to not reach Postgres limit of 65535 query parameters.
+
 ### October 22th, 2021 - Jungsoft version:
 - Save changes for nested associations.
 - Deal with changes that have embedded schemas.
