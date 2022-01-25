@@ -1,4 +1,4 @@
-### January 24th, 2022 - Jungsoft version:
+### v0.11.0 - January 24th, 2022 - Jungsoft version:
 - Chunk attributes when doing `insert_all` to not reach Postgres limit of 65535 query parameters.
 
 ### October 22th, 2021 - Jungsoft version:
