@@ -148,7 +148,7 @@ defmodule PaperTrail.Serializer do
   def do_serialize(%schema{} = model, options, event, changed_fields \\ nil) do
     fields = changed_fields || schema.__schema__(:fields)
     repo = RepoClient.repo(options)
-    {adapter, _adapter_meta} = Ecto.Repo.Registry.lookup(repo.get_dynamic_repo())
+    %{adapter: adapter} = Ecto.Repo.Registry.lookup(repo.get_dynamic_repo())
     changes = model |> Map.from_struct() |> Map.take(fields)
     associations = serialize_associations(model, options, event)
 

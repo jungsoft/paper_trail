@@ -687,16 +687,16 @@ defmodule PaperTrailTest do
     company_id = company.id
 
     assert [
-             %PaperTrail.Version{
-               item_id: ^company_id,
-               event: "update",
-               item_changes: %{"is_active" => false}
-             },
-             %PaperTrail.Version{
-               item_id: ^company_id,
-               event: "insert"
-             }
-           ] = PaperTrail.VersionQueries.get_versions(Company, company.id)
+      %PaperTrail.Version{
+        item_id: ^company_id,
+        event: "insert"
+      },
+      %PaperTrail.Version{
+        item_id: ^company_id,
+        event: "update",
+        item_changes: %{"is_active" => false}
+      },
+    ] = PaperTrail.VersionQueries.get_versions(Company, company.id)
   end
 
   test "update_all with returning option returns inserted version" do
