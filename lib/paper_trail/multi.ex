@@ -162,11 +162,7 @@ defmodule PaperTrail.Multi do
 
       _ ->
         multi
-        |> Ecto.Multi.run(version_key, fn repo, _changes ->
-          # Not using `Multi.insert_all` because of wrong typespec
-          # Waiting official release: https://github.com/elixir-ecto/ecto/pull/3781
-          {:ok, repo.insert_all(Version, entries_query, returning: returning)}
-        end)
+        |> Ecto.Multi.insert_all(version_key, Version, entries_query, returning: returning)
         |> Ecto.Multi.update_all(model_key, queryable, updates)
     end
   end
