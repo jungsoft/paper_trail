@@ -147,8 +147,7 @@ defmodule PaperTrail.Serializer do
   @spec do_serialize(struct, options, String.t(), [atom] | nil) :: map
   def do_serialize(%schema{} = model, options, event, changed_fields \\ nil) do
     fields = changed_fields || schema.__schema__(:fields)
-    repo = RepoClient.repo(options)
-    %{adapter: adapter} = Ecto.Repo.Registry.lookup(repo.get_dynamic_repo())
+    adapter = get_adapter(options)
     changes = model |> Map.from_struct() |> Map.take(fields)
     associations = serialize_associations(model, options, event)
 
@@ -157,6 +156,15 @@ defmodule PaperTrail.Serializer do
     |> Enum.map(&dump_field!(&1, schema, adapter, options, event))
     |> Map.new()
     |> Map.merge(associations)
+  end
+
+  defp get_adapter(options) do
+    repo = RepoClient.repo(options)
+
+    case Ecto.Repo.Registry.lookup(repo.get_dynamic_repo()) do
+      %{adapter: adapter} -> adapter
+      {adapter, _adapter_meta} -> adapter
+    end
   end
 
   @spec serialize_associations(struct, options, String.t()) :: map
