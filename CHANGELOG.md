@@ -1,3 +1,7 @@
+### v0.12 - August 24th, 2022 - Jungsoft version:
+- Add support for Ecto 3.8
+- Remove workaround from v0.11.1
+
 ### v0.11.1 - January 25th, 2022 - Jungsoft version:
 - Add workaround for wrong `Ecto.Multi.insert_all` typespec (https://github.com/elixir-ecto/ecto/pull/3781)
 
