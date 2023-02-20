@@ -135,25 +135,25 @@ defmodule PaperTrail.Serializer do
       ) do
     changes
     |> schema.__struct__()
-    |> do_serialize(options, "update", Map.keys(changes))
+    |> do_serialize(options, Map.keys(changes))
   end
 
-  def serialize(%Ecto.Changeset{data: data}, options, event) do
-    do_serialize(data, options, event)
+  def serialize(%Ecto.Changeset{data: data}, options, _event) do
+    do_serialize(data, options)
   end
 
-  def serialize(%_schema{} = model, options, event), do: do_serialize(model, options, event)
+  def serialize(%_schema{} = model, options, _event), do: do_serialize(model, options)
 
-  @spec do_serialize(struct, options, String.t(), [atom] | nil) :: map
-  def do_serialize(%schema{} = model, options, event, changed_fields \\ nil) do
+  @spec do_serialize(struct, options, [atom] | nil) :: map
+  defp do_serialize(%schema{} = model, options, changed_fields \\ nil) do
     fields = changed_fields || schema.__schema__(:fields)
     adapter = get_adapter(options)
     changes = model |> Map.from_struct() |> Map.take(fields)
-    associations = serialize_associations(model, options, event)
+    associations = serialize_associations(model, options)
 
     changes
     |> Map.take(schema.__schema__(:fields))
-    |> Enum.map(&dump_field!(&1, schema, adapter, options, event))
+    |> Enum.map(&dump_field!(&1, schema, adapter))
     |> Map.new()
     |> Map.merge(associations)
   end
@@ -167,28 +167,46 @@ defmodule PaperTrail.Serializer do
     end
   end
 
-  @spec serialize_associations(struct, options, String.t()) :: map
-  defp serialize_associations(%schema{} = model, options, event) do
+  defp serialize_associations(%schema{} = model, options) do
     association_fields = schema.__schema__(:associations)
 
     model
     |> Map.take(association_fields)
     |> Enum.filter(fn {_field, value} -> Ecto.assoc_loaded?(value) end)
-    |> Enum.map(fn {field, value} -> {field, serialize(value, options, event)} end)
+    |> Enum.map(fn {field, value} -> {field, serialize_association(value, options)} end)
+    |> Enum.reject(&match?({_, nil}, &1))
     |> Map.new()
   end
 
-  @spec dump_field!({atom, any}, module, module, options, String.t()) :: {atom, any}
-  defp dump_field!({field, %Ecto.Changeset{} = value}, _schema, _adapter, options, event) do
-    {field, serialize(value, options, event)}
+  defp serialize_association(list, options) when is_list(list) do
+    list
+    |> Enum.map(&serialize_association(&1, options))
+    |> Enum.reject(&is_nil/1)
   end
 
-  defp dump_field!({field, [%Ecto.Changeset{} | _] = changesets}, _schema, _adapter, options, event) do
-    serialized_changesets = Enum.map(changesets, fn changeset -> serialize(changeset, options, event) end)
-    {field, serialized_changesets}
+  defp serialize_association(
+         %Ecto.Changeset{data: %schema{} = data, changes: changes, action: event},
+         options
+       ) do
+    case event do
+      :replace ->
+        data = do_serialize(data, options)
+        %{event: event, data: data}
+
+      :update when changes == %{} ->
+        nil
+
+      _ ->
+        changes =
+          changes
+          |> schema.__struct__()
+          |> do_serialize(options, Map.keys(changes))
+
+        %{event: event, changes: changes}
+    end
   end
 
-  defp dump_field!({field, value}, schema, adapter, _options, _event) do
+  defp dump_field!({field, value}, schema, adapter) do
     dumper = schema.__schema__(:dump)
     {alias, type} = Map.fetch!(dumper, field)
 
