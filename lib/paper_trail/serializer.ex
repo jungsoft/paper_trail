@@ -167,6 +167,7 @@ defmodule PaperTrail.Serializer do
     end
   end
 
+  @spec serialize_associations(struct, options) :: map
   defp serialize_associations(%schema{} = model, options) do
     association_fields = schema.__schema__(:associations)
 
