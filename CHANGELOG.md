@@ -1,3 +1,11 @@
+### v0.14 - March 02th, 2023 - Jungsoft version:
+- Do not serialize nested associations when action is `update` and changes are empty
+- Add `event` and `data` info when serializing an association with `action == :replace`
+- Add `event` and `changes` info when serializing an association with `action != :replace`
+
+### v0.13 - November 10th, 2022 - Jungsoft version:
+- Add support for Ecto 3.9.0
+
 ### v0.12 - August 24th, 2022 - Jungsoft version:
 - Add support for Ecto 3.8
 - Remove workaround from v0.11.1
