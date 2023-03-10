@@ -184,6 +184,24 @@ defmodule PaperTrail.Multi do
     end)
   end
 
+  @spec soft_delete(multi, struct_or_changeset, options) :: multi
+  def soft_delete(
+        %Ecto.Multi{} = multi,
+        struct_or_changeset,
+        options \\ []
+      ) do
+    repo = RepoClient.repo(options)
+    model_key = get_model_key(options)
+    version_key = get_version_key(options)
+
+    multi
+    |> Ecto.Multi.run(model_key, fn _, _ -> repo.soft_delete(struct_or_changeset) end)
+    |> Ecto.Multi.run(version_key, fn repo, %{} ->
+      version = make_version_struct(%{event: "soft_delete"}, struct_or_changeset, options)
+      repo.insert(version, options)
+    end)
+  end
+
   @spec commit(multi, options) :: result
   def commit(%Ecto.Multi{} = multi, options \\ []) do
     model_key = get_model_key(options)

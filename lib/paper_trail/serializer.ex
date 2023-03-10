@@ -68,6 +68,26 @@ defmodule PaperTrail.Serializer do
     |> add_prefix(options[:prefix])
   end
 
+  def make_version_struct(%{event: "soft_delete"}, model_or_changeset, options) do
+    originator = RepoClient.originator()
+    originator_ref = options[originator[:name]] || options[:originator]
+
+    %Version{
+      event: "softdelete",
+      item_type: get_item_type(model_or_changeset),
+      item_id: get_model_id(model_or_changeset),
+      item_changes: serialize(model_or_changeset, options),
+      originator_id:
+        case originator_ref do
+          nil -> nil
+          _ -> originator_ref |> Map.get(:id)
+        end,
+      origin: options[:origin],
+      meta: options[:meta]
+    }
+    |> add_prefix(options[:prefix])
+  end
+
   @spec make_version_query(map, PaperTrail.queryable(), Keyword.t() | map, PaperTrail.options()) ::
           Ecto.Query.t()
   def make_version_query(%{event: "update"}, queryable, changes, options) do

@@ -43,7 +43,8 @@ defmodule PaperTrail do
   @callback update_all(queryable, updates, options) :: all_result
   @callback delete(Changeset.t(), options) :: result
   @callback delete!(Changeset.t(), options) :: Ecto.Schema.t()
-
+  @callback soft_delete(Ecto.Schema.t(), options) :: result
+  @callback soft_delete!(Ecto.Schema.t(), options) :: Ecto.Schema.t()
   @callback get_version(Ecto.Schema.t()) :: Ecto.Query.t()
   @callback get_version(module, any) :: Ecto.Query.t()
   @callback get_version(module, any, keyword) :: Ecto.Query.t()
@@ -103,6 +104,16 @@ defmodule PaperTrail do
       @impl true
       def delete!(struct, options \\ []) when is_list(options) do
         PaperTrail.delete!(struct, merge_options(options))
+      end
+
+      @impl true
+      def soft_delete(struct, options \\ []) when is_list(options) do
+        PaperTrail.soft_delete(struct, merge_options(options))
+      end
+
+      @impl true
+      def soft_delete!(struct, options \\ []) when is_list(options) do
+        PaperTrail.soft_delete!(struct, merge_options(options))
       end
 
       @impl true
@@ -310,6 +321,32 @@ defmodule PaperTrail do
     repo.transaction(fn ->
       model = repo.delete!(struct, options)
       version_struct = make_version_struct(%{event: "delete"}, struct, options)
+      repo.insert!(version_struct, options)
+      model
+    end)
+    |> elem(1)
+  end
+
+  @doc """
+  Soft deletion of a database record with a related version insert in a transaction
+  """
+  @spec soft_delete(Ecto.Schema.t(), options) :: result
+  def soft_delete(struct, options \\ []) do
+    Multi.new()
+    |> Multi.soft_delete(struct, options)
+    |> Multi.commit(options)
+  end
+
+  @doc """
+  Same as soft_delete/2 but returns only the model struct or raises if the changeset is invalid.
+  """
+  @spec soft_delete!(Ecto.Schema.t(), options) :: Ecto.Schema.t()
+  def soft_delete!(struct, options \\ []) do
+    repo = RepoClient.repo(options)
+
+    repo.transaction(fn ->
+      model = repo.soft_delete!(struct)
+      version_struct = make_version_struct(%{event: "soft_delete"}, struct, options)
       repo.insert!(version_struct, options)
       model
     end)
