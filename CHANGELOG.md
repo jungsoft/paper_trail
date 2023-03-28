@@ -1,3 +1,7 @@
+### v0.14.1 - March 28th, 2023 - Jungsoft version:
+- Add pattern match for models when serialize association
+- Add pattern match for changesets when dump field
+
 ### v0.14 - March 02th, 2023 - Jungsoft version:
 - Do not serialize nested associations when action is `update` and changes are empty
 - Add `event` and `data` info when serializing an association with `action == :replace`
@@ -11,8 +15,8 @@ Suppose we have a Post struct and a Comment struct that is associated with Post 
 
 ```elixir
 %Post{
-  title: "Example post", 
-  description: "...", 
+  title: "Example post",
+  description: "...",
   comments: [
     %{Comment{id: 1, text: "comment 1"},
     %{Comment{id: 2, text: "comment 2"},
