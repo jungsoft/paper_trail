@@ -207,7 +207,7 @@ defmodule PaperTrail.Serializer do
     end
   end
 
-  defp serialize_association(%_schema{} = model, options), do: do_serialize(model, options)
+  defp serialize_association(%_schema{} = model, options), do: %{"event" => "insert", "changes" => do_serialize(model, options)}
 
   defp dump_field!({field, %Ecto.Changeset{action: event} = value}, _schema, _adapter, options) do
     {field, serialize(value, options, event)}
