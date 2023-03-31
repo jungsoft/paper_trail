@@ -153,7 +153,7 @@ defmodule PaperTrail.Serializer do
 
     changes
     |> Map.take(schema.__schema__(:fields))
-    |> Enum.map(&dump_field!(&1, schema, adapter))
+    |> Enum.map(&dump_field!(&1, schema, adapter, options))
     |> Map.new()
     |> Map.merge(associations)
   end
@@ -207,7 +207,18 @@ defmodule PaperTrail.Serializer do
     end
   end
 
-  defp dump_field!({field, value}, schema, adapter) do
+  defp serialize_association(%_schema{} = model, options), do: %{"event" => "insert", "changes" => do_serialize(model, options)}
+
+  defp dump_field!({field, %Ecto.Changeset{action: event} = value}, _schema, _adapter, options) do
+    {field, serialize(value, options, event)}
+  end
+
+  defp dump_field!({field, [%Ecto.Changeset{action: event} | _] = changesets}, _schema, _adapter, options) do
+    serialized_changesets = Enum.map(changesets, fn changeset -> serialize(changeset, options, event) end)
+    {field, serialized_changesets}
+  end
+
+  defp dump_field!({field, value}, schema, adapter, _options) do
     dumper = schema.__schema__(:dump)
     {alias, type} = Map.fetch!(dumper, field)
 
