@@ -45,6 +45,7 @@ defmodule PaperTrail do
   @callback delete!(Changeset.t(), options) :: Ecto.Schema.t()
   @callback soft_delete(Ecto.Schema.t(), options) :: result
   @callback soft_delete!(Ecto.Schema.t(), options) :: Ecto.Schema.t()
+  @callback soft_delete_all(queryable, options) :: all_result
   @callback get_version(Ecto.Schema.t()) :: Ecto.Query.t()
   @callback get_version(module, any) :: Ecto.Query.t()
   @callback get_version(module, any, keyword) :: Ecto.Query.t()
@@ -350,6 +351,17 @@ defmodule PaperTrail do
       repo.insert!(version_struct, options)
       model
     end)
+    |> elem(1)
+  end
+
+  @doc """
+  Soft delete all records from the database with a related version insertion in one transaction
+  """
+  @spec soft_delete_all(queryable, options) :: all_result
+  def soft_delete_all(queryable, options \\ []) do
+    Multi.new()
+    |> Multi.soft_delete_all(queryable, options)
+    |> Multi.commit(options)
     |> elem(1)
   end
 end

@@ -202,6 +202,30 @@ defmodule PaperTrail.Multi do
     end)
   end
 
+  @spec soft_delete_all(multi, queryable, options) :: multi
+  def soft_delete_all(
+        %Ecto.Multi{} = multi,
+        queryable,
+        options \\ []
+      ) do
+    changes = [deleted_at: DateTime.utc_now()]
+    updates = [set: changes]
+    model_key = get_model_key(options)
+    version_key = get_version_key(options)
+    entries_query = make_version_query(%{event: "soft_delete"}, queryable, changes, options)
+    returning = !!options[:returning] && RepoClient.return_operation(options) == version_key
+
+    case RepoClient.strict_mode(options) do
+      true ->
+        raise "Strict mode not implemented for soft_delete_all"
+
+      _ ->
+        multi
+        |> Ecto.Multi.insert_all(version_key, Version, entries_query, returning: returning)
+        |> Ecto.Multi.update_all(model_key, queryable, updates)
+    end
+  end
+
   @spec commit(multi, options) :: result
   def commit(%Ecto.Multi{} = multi, options \\ []) do
     model_key = get_model_key(options)

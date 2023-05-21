@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Papertrail.Install do
 
       def change do
         create table(:versions) do
-          add :event,        :string, null: false, size: 10
+          add :event,        :string, null: false, size: 11
           add :item_type,    :string, null: false
           add :item_id,      :integer
           add :item_changes, :map, null: false
