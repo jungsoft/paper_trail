@@ -5,6 +5,7 @@ defmodule PaperTrail.Serializer do
   alias PaperTrail.Version
 
   @type options :: PaperTrail.options()
+  @type model :: nil | Ecto.Changeset.t() | struct() | [Ecto.Changeset.t() | struct()]
 
   @default_ignored_ecto_types [Ecto.UUID, :binary_id, :binary]
 
@@ -28,7 +29,8 @@ defmodule PaperTrail.Serializer do
     |> add_prefix(options[:prefix])
   end
 
-  @spec make_version_query(map, PaperTrail.queryable(), Keyword.t() | map, PaperTrail.options()) :: Ecto.Query.t()
+  @spec make_version_query(map, PaperTrail.queryable(), Keyword.t() | map, PaperTrail.options()) ::
+          Ecto.Query.t()
   def make_version_query(%{event: event}, queryable, changes, options) do
     {_table, schema} = queryable.from.source
     item_type = schema |> struct() |> get_item_type()
@@ -74,11 +76,8 @@ defmodule PaperTrail.Serializer do
     |> List.first()
   end
 
-  @spec serialize(
-          nil | Ecto.Changeset.t() | struct() | [Ecto.Changeset.t() | struct()],
-          options(),
-          String.t()
-        ) :: nil | map() | [map()]
+  @spec serialize(model(), options()) :: nil | map() | [map()]
+  @spec serialize(model(), options(), String.t()) :: nil | map() | [map()]
   def serialize(model, options, event \\ "insert")
 
   def serialize(nil, _options, _event), do: nil
@@ -97,9 +96,7 @@ defmodule PaperTrail.Serializer do
     |> do_serialize(options, Map.keys(changes))
   end
 
-  def serialize(%Ecto.Changeset{data: data}, options, _event) do
-    do_serialize(data, options)
-  end
+  def serialize(%Ecto.Changeset{data: data}, options, _event), do: do_serialize(data, options)
 
   def serialize(%_schema{} = model, options, _event), do: do_serialize(model, options)
 
@@ -132,7 +129,7 @@ defmodule PaperTrail.Serializer do
 
     model
     |> Map.take(association_fields)
-    |> Enum.filter(fn {_field, value} -> Ecto.assoc_loaded?(value) end)
+    |> Enum.filter(fn {_field, value} -> not is_nil(value) and Ecto.assoc_loaded?(value) end)
     |> Enum.map(fn {field, value} -> {field, serialize_association(value, options)} end)
     |> Enum.reject(&match?({_, nil}, &1))
     |> Map.new()

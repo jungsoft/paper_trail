@@ -157,7 +157,7 @@ defmodule PaperTrailTest do
                website: "http://www.acme.com",
                facebook: "acme.llc",
                location: %{country: "Chile"},
-               email_options: %{newsletter_enabled: true}
+               email_options: %{newsletter_enabled: false}
              },
              originator_id: user.id,
              origin: nil,
@@ -233,7 +233,7 @@ defmodule PaperTrailTest do
                website: "http://www.acme.com",
                facebook: "acme.llc",
                location: %{country: "Chile"},
-               email_options: %{newsletter_enabled: true}
+               email_options: %{newsletter_enabled: false}
              },
              originator_id: user.id,
              origin: nil,
@@ -687,16 +687,16 @@ defmodule PaperTrailTest do
     company_id = company.id
 
     assert [
-      %PaperTrail.Version{
-        item_id: ^company_id,
-        event: "insert"
-      },
-      %PaperTrail.Version{
-        item_id: ^company_id,
-        event: "update",
-        item_changes: %{"is_active" => false}
-      },
-    ] = PaperTrail.VersionQueries.get_versions(Company, company.id)
+             %PaperTrail.Version{
+               item_id: ^company_id,
+               event: "update",
+               item_changes: %{"is_active" => false}
+             },
+             %PaperTrail.Version{
+               item_id: ^company_id,
+               event: "insert"
+             }
+           ] = PaperTrail.VersionQueries.get_versions(Company, company.id)
   end
 
   test "update_all with returning option returns inserted version" do
@@ -748,7 +748,10 @@ defmodule PaperTrailTest do
              visit_count: nil,
              birthdate: nil,
              company_id: result[:model].company.id,
-             company: company
+             company: %{
+               "changes" => company,
+               "event" => "insert"
+             }
            }
 
     assert %{name: "My company"} = company
@@ -801,13 +804,16 @@ defmodule PaperTrailTest do
     assert version_count == 2
 
     assert Map.drop(person, [:id, :inserted_at, :updated_at]) == %{
-             first_name: "Isaac",
-             visit_count: 10,
              birthdate: ~D[1992-04-01],
-             last_name: "Nakri",
+             company: %{
+               "changes" => company,
+               "event" => "insert"
+             },
+             company_id: company.id,
+             first_name: "Isaac",
              gender: true,
-             company_id: result[:model].company.id,
-             company: company
+             last_name: "Nakri",
+             visit_count: 10
            }
 
     assert Map.drop(version, [:id, :inserted_at]) == %{
@@ -818,7 +824,7 @@ defmodule PaperTrailTest do
                first_name: "Isaac",
                visit_count: 10,
                birthdate: ~D[1992-04-01],
-               company: %{name: "Other company"}
+               company: %{changes: %{name: "Other company"}, event: :update}
              },
              originator_id: nil,
              origin: "scraper",
