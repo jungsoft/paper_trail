@@ -38,6 +38,7 @@ defmodule PaperTrail do
 
   @callback insert(Changeset.t(), options) :: result
   @callback insert!(Changeset.t(), options) :: Ecto.Schema.t()
+  @callback insert_all(list(Changeset.t()), options) :: all_result
   @callback update(Changeset.t(), options) :: result
   @callback update!(Changeset.t(), options) :: Ecto.Schema.t()
   @callback update_all(queryable, updates, options) :: all_result
@@ -83,6 +84,11 @@ defmodule PaperTrail do
       end
 
       @impl true
+      def insert_all(changesets, options \\ []) when is_list(options) do
+        PaperTrail.insert_all(changesets, merge_options(options))
+      end
+
+      @impl true
       def update(changeset, options \\ []) when is_list(options) do
         PaperTrail.update(changeset, merge_options(options))
       end
@@ -115,6 +121,11 @@ defmodule PaperTrail do
       @impl true
       def soft_delete!(struct, options \\ []) when is_list(options) do
         PaperTrail.soft_delete!(struct, merge_options(options))
+      end
+
+      @impl true
+      def soft_delete_all(struct, options \\ []) when is_list(options) do
+        PaperTrail.soft_delete_all(struct, merge_options(options))
       end
 
       @impl true
@@ -238,6 +249,16 @@ defmodule PaperTrail do
       end
     end)
     |> elem(1)
+  end
+
+  @doc """
+  Inserts all records from the database with a related version insertion in one transaction
+  """
+  @spec insert_all(list(Changeset.t()), options) :: result
+  def insert_all(changesets, options \\ []) do
+    Multi.new()
+    |> Multi.insert_all(changesets, options)
+    |> Multi.commit(options)
   end
 
   @doc """

@@ -93,6 +93,33 @@ defmodule PaperTrail.Multi do
     end
   end
 
+  @spec insert_all(multi, list(changeset), options) :: multi
+  def insert_all(
+        %Ecto.Multi{} = multi,
+        changesets,
+        options \\ []
+      ) do
+    model_key = get_model_key(options)
+    version_key = get_version_key(options)
+    source = options[:source]
+
+    case RepoClient.strict_mode(options) do
+      true ->
+        raise "Strict mode not implemented for insert_all"
+
+      _ ->
+        multi
+        |> Ecto.Multi.insert_all(model_key, source, changesets, options)
+        |> Ecto.Multi.merge(fn %{^model_key => {_count, models}} ->
+          (models || [])
+          |> Enum.reduce(Ecto.Multi.new(), fn model, multi ->
+            version = make_version_struct(%{event: "insert"}, model, options)
+            Ecto.Multi.insert(multi, {version_key, version.item_id}, version)
+          end)
+        end)
+    end
+  end
+
   @spec update(multi, changeset, options) :: multi
   def update(
         %Ecto.Multi{} = multi,
