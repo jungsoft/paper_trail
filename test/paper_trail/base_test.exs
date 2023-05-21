@@ -114,6 +114,28 @@ defmodule PaperTrailTest do
     assert result == ecto_result
   end
 
+  test "creating companies with insert_all/2" do
+    placeholders = %{now: DateTime.to_naive(DateTime.truncate(DateTime.utc_now(), :second))}
+
+    {:ok, %{:model => {2, nil}}} ==
+      create_companies_with_version(
+        [
+          %{
+            name: "Acme LLC",
+            is_active: true,
+            city: "Greenwich"
+          },
+          %{
+            name: "Acme",
+            is_active: true,
+            city: "Greenwich 2"
+          }
+        ],
+        source: Company,
+        placeholders: placeholders
+      )
+  end
+
   test "updating a company with originator creates a correct company version" do
     user = create_user()
     {:ok, insert_result} = create_company_with_version()
@@ -838,6 +860,17 @@ defmodule PaperTrailTest do
 
   defp create_company_with_version(params \\ @create_company_params, options \\ []) do
     Company.changeset(%Company{}, params) |> CustomPaperTrail.insert(options)
+  end
+
+  defp create_companies_with_version(params, options) do
+    params
+    |> Enum.map(&Company.changeset(%Company{}, &1))
+    |> Enum.map(fn %{changes: changes} ->
+      changes
+      |> Map.put(:inserted_at, {:placeholder, :now})
+      |> Map.put(:updated_at, {:placeholder, :now})
+    end)
+    |> CustomPaperTrail.insert_all(options)
   end
 
   defp update_company_with_version(company, params \\ @update_company_params, options \\ []) do

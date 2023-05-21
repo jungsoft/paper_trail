@@ -93,10 +93,10 @@ defmodule PaperTrail.Multi do
     end
   end
 
-  @spec insert_all(multi, list(changeset), options) :: multi
+  @spec insert_all(multi, list(map()), options) :: multi
   def insert_all(
         %Ecto.Multi{} = multi,
-        changesets,
+        entries,
         options \\ []
       ) do
     model_key = get_model_key(options)
@@ -109,7 +109,7 @@ defmodule PaperTrail.Multi do
 
       _ ->
         multi
-        |> Ecto.Multi.insert_all(model_key, source, changesets, options)
+        |> Ecto.Multi.insert_all(model_key, source, entries, options)
         |> Ecto.Multi.merge(fn %{^model_key => {_count, models}} ->
           (models || [])
           |> Enum.reduce(Ecto.Multi.new(), fn model, multi ->
