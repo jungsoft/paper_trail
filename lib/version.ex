@@ -4,6 +4,8 @@ defmodule PaperTrail.Version do
   import Ecto.Changeset
   import Ecto.Query
 
+  alias PaperTrail.RepoClient
+
   @type t :: %__MODULE__{
           event: String.t(),
           item_type: String.t(),
@@ -36,7 +38,10 @@ defmodule PaperTrail.Version do
       )
     end
 
-    timestamps(updated_at: false)
+    timestamps(
+      updated_at: false,
+      type: RepoClient.timestamps_type()
+    )
   end
 
   def changeset(model, params \\ %{}) do

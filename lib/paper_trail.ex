@@ -38,12 +38,15 @@ defmodule PaperTrail do
 
   @callback insert(Changeset.t(), options) :: result
   @callback insert!(Changeset.t(), options) :: Ecto.Schema.t()
+  @callback insert_all(list(map()), options) :: all_result
   @callback update(Changeset.t(), options) :: result
   @callback update!(Changeset.t(), options) :: Ecto.Schema.t()
   @callback update_all(queryable, updates, options) :: all_result
   @callback delete(Changeset.t(), options) :: result
   @callback delete!(Changeset.t(), options) :: Ecto.Schema.t()
-
+  @callback soft_delete(Ecto.Schema.t(), options) :: result
+  @callback soft_delete!(Ecto.Schema.t(), options) :: Ecto.Schema.t()
+  @callback soft_delete_all(queryable, options) :: all_result
   @callback get_version(Ecto.Schema.t()) :: Ecto.Query.t()
   @callback get_version(module, any) :: Ecto.Query.t()
   @callback get_version(module, any, keyword) :: Ecto.Query.t()
@@ -81,6 +84,11 @@ defmodule PaperTrail do
       end
 
       @impl true
+      def insert_all(entries, options \\ []) when is_list(options) do
+        PaperTrail.insert_all(entries, merge_options(options))
+      end
+
+      @impl true
       def update(changeset, options \\ []) when is_list(options) do
         PaperTrail.update(changeset, merge_options(options))
       end
@@ -103,6 +111,21 @@ defmodule PaperTrail do
       @impl true
       def delete!(struct, options \\ []) when is_list(options) do
         PaperTrail.delete!(struct, merge_options(options))
+      end
+
+      @impl true
+      def soft_delete(struct, options \\ []) when is_list(options) do
+        PaperTrail.soft_delete(struct, merge_options(options))
+      end
+
+      @impl true
+      def soft_delete!(struct, options \\ []) when is_list(options) do
+        PaperTrail.soft_delete!(struct, merge_options(options))
+      end
+
+      @impl true
+      def soft_delete_all(struct, options \\ []) when is_list(options) do
+        PaperTrail.soft_delete_all(struct, merge_options(options))
       end
 
       @impl true
@@ -229,6 +252,16 @@ defmodule PaperTrail do
   end
 
   @doc """
+  Inserts all records from the database with a related version insertion in one transaction
+  """
+  @spec insert_all(list(map()), options) :: result
+  def insert_all(entries, options \\ []) do
+    Multi.new()
+    |> Multi.insert_all(entries, options)
+    |> Multi.commit(options)
+  end
+
+  @doc """
   Updates a record from the database with a related version insertion in one transaction
   """
   @spec update(Changeset.t(), options) :: result
@@ -313,6 +346,43 @@ defmodule PaperTrail do
       repo.insert!(version_struct, options)
       model
     end)
+    |> elem(1)
+  end
+
+  @doc """
+  Soft deletion of a database record with a related version insert in a transaction
+  """
+  @spec soft_delete(Ecto.Schema.t(), options) :: result
+  def soft_delete(struct, options \\ []) do
+    Multi.new()
+    |> Multi.soft_delete(struct, options)
+    |> Multi.commit(options)
+  end
+
+  @doc """
+  Same as soft_delete/2 but returns only the model struct or raises if the changeset is invalid.
+  """
+  @spec soft_delete!(Ecto.Schema.t(), options) :: Ecto.Schema.t()
+  def soft_delete!(struct, options \\ []) do
+    repo = RepoClient.repo(options)
+
+    repo.transaction(fn ->
+      model = repo.soft_delete!(struct)
+      version_struct = make_version_struct(%{event: "soft_delete"}, struct, options)
+      repo.insert!(version_struct, options)
+      model
+    end)
+    |> elem(1)
+  end
+
+  @doc """
+  Soft delete all records from the database with a related version insertion in one transaction
+  """
+  @spec soft_delete_all(queryable, options) :: all_result
+  def soft_delete_all(queryable, options \\ []) do
+    Multi.new()
+    |> Multi.soft_delete_all(queryable, options)
+    |> Multi.commit(options)
     |> elem(1)
   end
 end

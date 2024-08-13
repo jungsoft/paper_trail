@@ -114,6 +114,28 @@ defmodule PaperTrailTest do
     assert result == ecto_result
   end
 
+  test "creating companies with insert_all/2" do
+    placeholders = %{now: DateTime.to_naive(DateTime.truncate(DateTime.utc_now(), :second))}
+
+    {:ok, %{:model => {2, nil}}} ==
+      create_companies_with_version(
+        [
+          %{
+            name: "Acme LLC",
+            is_active: true,
+            city: "Greenwich"
+          },
+          %{
+            name: "Acme",
+            is_active: true,
+            city: "Greenwich 2"
+          }
+        ],
+        source: Company,
+        placeholders: placeholders
+      )
+  end
+
   test "updating a company with originator creates a correct company version" do
     user = create_user()
     {:ok, insert_result} = create_company_with_version()
@@ -157,7 +179,7 @@ defmodule PaperTrailTest do
                website: "http://www.acme.com",
                facebook: "acme.llc",
                location: %{country: "Chile"},
-               email_options: %{newsletter_enabled: true}
+               email_options: %{newsletter_enabled: false}
              },
              originator_id: user.id,
              origin: nil,
@@ -233,7 +255,7 @@ defmodule PaperTrailTest do
                website: "http://www.acme.com",
                facebook: "acme.llc",
                location: %{country: "Chile"},
-               email_options: %{newsletter_enabled: true}
+               email_options: %{newsletter_enabled: false}
              },
              originator_id: user.id,
              origin: nil,
@@ -687,16 +709,16 @@ defmodule PaperTrailTest do
     company_id = company.id
 
     assert [
-      %PaperTrail.Version{
-        item_id: ^company_id,
-        event: "insert"
-      },
-      %PaperTrail.Version{
-        item_id: ^company_id,
-        event: "update",
-        item_changes: %{"is_active" => false}
-      },
-    ] = PaperTrail.VersionQueries.get_versions(Company, company.id)
+             %PaperTrail.Version{
+               item_id: ^company_id,
+               event: "update",
+               item_changes: %{"is_active" => false}
+             },
+             %PaperTrail.Version{
+               item_id: ^company_id,
+               event: "insert"
+             }
+           ] = PaperTrail.VersionQueries.get_versions(Company, company.id)
   end
 
   test "update_all with returning option returns inserted version" do
@@ -748,7 +770,10 @@ defmodule PaperTrailTest do
              visit_count: nil,
              birthdate: nil,
              company_id: result[:model].company.id,
-             company: company
+             company: %{
+               "changes" => company,
+               "event" => "insert"
+             }
            }
 
     assert %{name: "My company"} = company
@@ -801,13 +826,16 @@ defmodule PaperTrailTest do
     assert version_count == 2
 
     assert Map.drop(person, [:id, :inserted_at, :updated_at]) == %{
-             first_name: "Isaac",
-             visit_count: 10,
              birthdate: ~D[1992-04-01],
-             last_name: "Nakri",
+             company: %{
+               "changes" => company,
+               "event" => "insert"
+             },
+             company_id: company.id,
+             first_name: "Isaac",
              gender: true,
-             company_id: result[:model].company.id,
-             company: company
+             last_name: "Nakri",
+             visit_count: 10
            }
 
     assert Map.drop(version, [:id, :inserted_at]) == %{
@@ -818,7 +846,7 @@ defmodule PaperTrailTest do
                first_name: "Isaac",
                visit_count: 10,
                birthdate: ~D[1992-04-01],
-               company: %{name: "Other company"}
+               company: %{changes: %{name: "Other company"}, event: :update}
              },
              originator_id: nil,
              origin: "scraper",
@@ -832,6 +860,17 @@ defmodule PaperTrailTest do
 
   defp create_company_with_version(params \\ @create_company_params, options \\ []) do
     Company.changeset(%Company{}, params) |> CustomPaperTrail.insert(options)
+  end
+
+  defp create_companies_with_version(params, options) do
+    params
+    |> Enum.map(&Company.changeset(%Company{}, &1))
+    |> Enum.map(fn %{changes: changes} ->
+      changes
+      |> Map.put(:inserted_at, {:placeholder, :now})
+      |> Map.put(:updated_at, {:placeholder, :now})
+    end)
+    |> CustomPaperTrail.insert_all(options)
   end
 
   defp update_company_with_version(company, params \\ @update_company_params, options \\ []) do

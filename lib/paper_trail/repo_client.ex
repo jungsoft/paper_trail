@@ -31,4 +31,7 @@ defmodule PaperTrail.RepoClient do
       {:ok, return_operation} -> return_operation
     end
   end
+
+  @spec timestamps_type :: atom()
+  def timestamps_type, do: Application.get_env(:paper_trail, :timestamps_type, :naive_datetime)
 end

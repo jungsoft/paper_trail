@@ -33,7 +33,7 @@ defmodule PaperTrail.Multi do
   defdelegate make_version_struct(version, model, options), to: Serializer
   defdelegate make_version_query(version, queryable, changes, options), to: Serializer
   defdelegate get_sequence_from_model(changeset, options \\ []), to: Serializer
-  defdelegate serialize(data, options), to: Serializer
+  defdelegate serialize(data, options, event), to: Serializer
   defdelegate get_sequence_id(table_name, options \\ []), to: Serializer
   defdelegate add_prefix(changeset, prefix), to: Serializer
   defdelegate get_item_type(data), to: Serializer
@@ -77,7 +77,8 @@ defmodule PaperTrail.Multi do
                                             ^model_key => model
                                           } ->
           target_version =
-            make_version_struct(%{event: "insert"}, model, options) |> serialize(options)
+            make_version_struct(%{event: "insert"}, model, options)
+            |> serialize(options, "insert")
 
           Version.changeset(initial_version, target_version) |> repo.update
         end)
@@ -88,6 +89,33 @@ defmodule PaperTrail.Multi do
         |> Ecto.Multi.run(version_key, fn repo, %{^model_key => model} ->
           version = make_version_struct(%{event: "insert"}, model, options)
           repo.insert(version)
+        end)
+    end
+  end
+
+  @spec insert_all(multi, list(map()), options) :: multi
+  def insert_all(
+        %Ecto.Multi{} = multi,
+        entries,
+        options \\ []
+      ) do
+    model_key = get_model_key(options)
+    version_key = get_version_key(options)
+    source = options[:source]
+
+    case RepoClient.strict_mode(options) do
+      true ->
+        raise "Strict mode not implemented for insert_all"
+
+      _ ->
+        multi
+        |> Ecto.Multi.insert_all(model_key, source, entries, options)
+        |> Ecto.Multi.merge(fn %{^model_key => {_count, models}} ->
+          (models || [])
+          |> Enum.reduce(Ecto.Multi.new(), fn model, multi ->
+            version = make_version_struct(%{event: "insert"}, model, options)
+            Ecto.Multi.insert(multi, {version_key, version.item_id}, version)
+          end)
         end)
     end
   end
@@ -182,6 +210,48 @@ defmodule PaperTrail.Multi do
       version = make_version_struct(%{event: "delete"}, struct_or_changeset, options)
       repo.insert(version, options)
     end)
+  end
+
+  @spec soft_delete(multi, struct_or_changeset, options) :: multi
+  def soft_delete(
+        %Ecto.Multi{} = multi,
+        struct_or_changeset,
+        options \\ []
+      ) do
+    repo = RepoClient.repo(options)
+    model_key = get_model_key(options)
+    version_key = get_version_key(options)
+
+    multi
+    |> Ecto.Multi.run(model_key, fn _, _ -> repo.soft_delete(struct_or_changeset) end)
+    |> Ecto.Multi.run(version_key, fn repo, %{} ->
+      version = make_version_struct(%{event: "soft_delete"}, struct_or_changeset, options)
+      repo.insert(version, options)
+    end)
+  end
+
+  @spec soft_delete_all(multi, queryable, options) :: multi
+  def soft_delete_all(
+        %Ecto.Multi{} = multi,
+        queryable,
+        options \\ []
+      ) do
+    changes = [deleted_at: DateTime.utc_now()]
+    updates = [set: changes]
+    model_key = get_model_key(options)
+    version_key = get_version_key(options)
+    entries_query = make_version_query(%{event: "soft_delete"}, queryable, changes, options)
+    returning = !!options[:returning] && RepoClient.return_operation(options) == version_key
+
+    case RepoClient.strict_mode(options) do
+      true ->
+        raise "Strict mode not implemented for soft_delete_all"
+
+      _ ->
+        multi
+        |> Ecto.Multi.insert_all(version_key, Version, entries_query, returning: returning)
+        |> Ecto.Multi.update_all(model_key, queryable, updates)
+    end
   end
 
   @spec commit(multi, options) :: result
