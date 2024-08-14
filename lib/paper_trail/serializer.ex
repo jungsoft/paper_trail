@@ -131,7 +131,7 @@ defmodule PaperTrail.Serializer do
     |> Map.take(association_fields)
     |> Enum.filter(fn {_field, value} -> not is_nil(value) and Ecto.assoc_loaded?(value) end)
     |> Enum.map(fn {field, value} -> {field, serialize_association(value, options)} end)
-    |> Enum.reject(&match?({_, nil}, &1))
+    |> Enum.reject(&(match?({_, nil}, &1) || match?({_, []}, &1)))
     |> Map.new()
   end
 
@@ -159,7 +159,11 @@ defmodule PaperTrail.Serializer do
           |> schema.__struct__()
           |> do_serialize(options, Map.keys(changes))
 
-        %{event: event, changes: changes}
+        if changes == %{} do
+          nil
+        else
+          %{event: event, changes: changes}
+        end
     end
   end
 
