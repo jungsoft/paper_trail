@@ -68,10 +68,7 @@ defmodule PaperTrail.Serializer do
   end
 
   def get_sequence_id(table_name, options) do
-    Ecto.Adapters.SQL.query!(
-      RepoClient.repo(options),
-      "select last_value FROM #{table_name}_id_seq"
-    ).rows
+    RepoClient.repo(options).query!("SELECT last_value FROM #{table_name}_id_seq").rows
     |> List.first()
     |> List.first()
   end
@@ -188,7 +185,12 @@ defmodule PaperTrail.Serializer do
 
   defp dump_field!({field, value}, schema, adapter, _options) do
     dumper = schema.__schema__(:dump)
-    {alias, type} = Map.fetch!(dumper, field)
+
+    {alias, type} =
+      case Map.fetch!(dumper, field) do
+        {alias, type} -> {alias, type}
+        {alias, type, _extra} -> {alias, type}
+      end
 
     dumped_value =
       if type in ignored_ecto_types(),

@@ -18,12 +18,12 @@ defmodule PaperTrail.Version do
   schema "versions" do
     field(:event, :string)
     field(:item_type, :string)
-    field(:item_id, Application.get_env(:paper_trail, :item_type, :integer))
+    field(:item_id, Application.compile_env(:paper_trail, :item_type, :integer))
     field(:item_changes, :map)
     field(:originator_id, PaperTrail.RepoClient.originator_type())
 
     field(:origin, :string,
-      read_after_writes: Application.get_env(:paper_trail, :origin_read_after_writes, true)
+      read_after_writes: Application.compile_env(:paper_trail, :origin_read_after_writes, true)
     )
 
     field(:meta, :map)
